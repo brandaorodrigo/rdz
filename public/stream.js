@@ -387,6 +387,12 @@ function sendStop() {
     }
 }
 
+function forceStop(channel) {
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+        send({ channel, type: 'kill' });
+    }
+}
+
 function stop() {
     if (!state.channel || state.stopping) {
         return;
@@ -436,8 +442,9 @@ function render() {
         status.classList.toggle('live', mine && !state.stopping);
         status.classList.toggle('busy', busy);
 
-        button.textContent = mine ? 'Parar' : 'Transmitir';
-        button.disabled = state.picking || !state.connected || busy || (state.channel !== null && !mine) || (mine && state.stopping);
+        const ending = mine && state.stopping;
+        button.textContent = mine && !ending ? 'Parar' : busy || ending ? 'Encerrar' : 'Transmitir';
+        button.disabled = state.picking || !state.connected || (!mine && !busy && state.channel !== null);
     }
 }
 
@@ -454,8 +461,10 @@ document.querySelector('.channels').addEventListener('click', (event) => {
         return;
     }
     const id = Number(button.closest('[data-channel]').dataset.channel);
-    if (state.channel === id) {
+    if (state.channel === id && !state.stopping) {
         stop();
+    } else if (state.slots[id] || (state.channel === id && state.stopping)) {
+        forceStop(id);
     } else {
         transmit(id);
     }

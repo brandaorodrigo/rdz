@@ -159,9 +159,9 @@ function sessionBySocket(ws) {
     return null;
 }
 
-function stopSession(id) {
+function stopSession(id, force) {
     const session = sessions.get(id);
-    if (!session || session.stopping) {
+    if (!session || (session.stopping && !force)) {
         return;
     }
     session.stopping = true;
@@ -169,11 +169,17 @@ function stopSession(id) {
     if (stdin && !stdin.destroyed) {
         stdin.end();
     }
-    session.killTimer = setTimeout(() => {
+    const kill = () => {
         if (session.ffmpeg.exitCode === null && !session.ffmpeg.killed) {
             session.ffmpeg.kill('SIGKILL');
         }
-    }, 3000);
+    };
+    clearTimeout(session.killTimer);
+    if (force) {
+        kill();
+        return;
+    }
+    session.killTimer = setTimeout(kill, 3000);
 }
 
 function startSession(ws, channel, width, height, fps, withAudio) {
@@ -249,6 +255,16 @@ function onControl(ws, msg) {
         if (session) {
             stopSession(session.id);
         }
+        return;
+    }
+
+    if (msg.type === 'kill') {
+        const channel = Number(msg.channel);
+        if (![1, 2, 3].includes(channel)) {
+            send(ws, { message: 'Canal inválido.', type: 'error' });
+            return;
+        }
+        stopSession(channel, true);
         return;
     }
 
