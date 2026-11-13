@@ -7,7 +7,7 @@ const { WebSocketServer } = require('ws');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const PORT = Number(process.env.PORT) || 3000;
-const BITRATE = '8000k';
+const BITRATE = '4000k';
 const GOP = 2;
 const publicDir = path.join(__dirname, 'public');
 const clients = new Set();
@@ -259,7 +259,7 @@ function startSession(ws, channel, width, height, fps, withAudio) {
         });
     });
 
-    console.log(`Canal ${channel} abrindo ${width}x${height} ${fps}fps CBR 8000kbps GOP 2${withAudio ? ' com áudio' : ''}`);
+    console.log(`Canal ${channel} abrindo ${width}x${height} ${fps}fps CBR 4000kbps GOP 2${withAudio ? ' com áudio' : ''}`);
     send(ws, { channel, type: 'ready' });
     broadcastSlots();
 }
