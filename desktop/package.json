@@ -1,0 +1,46 @@
+{
+  "name": "rdz-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "productName": "rdz",
+  "description": "transmissor desktop do rdz",
+  "main": "main.js",
+  "scripts": {
+    "loopback": "dotnet publish loopback/RdzLoopback.csproj -c Release -o loopback/publish",
+    "start": "electron .",
+    "build": "npm run loopback && electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "app.rdz.desktop",
+    "productName": "rdz",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "electronLanguages": ["pt-BR", "en-US"],
+    "compression": "maximum",
+    "win": {
+      "artifactName": "rdz.exe",
+      "extraResources": [
+        {
+          "from": "loopback/publish/rdz-loopback.exe",
+          "to": "rdz-loopback.exe"
+        }
+      ],
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ]
+    }
+  }
+}

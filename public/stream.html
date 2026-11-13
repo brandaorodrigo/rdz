@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <meta content="dark" name="color-scheme">
+    <title>Transmitir</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        #picker[hidden] {
+            display: none;
+        }
+
+        #picker {
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+            display: grid;
+            place-items: center;
+            padding: 1.5rem;
+            background: rgba(0, 0, 0, 0.55);
+            font-family: "Readex Pro", sans-serif;
+        }
+
+        .picker-panel {
+            width: min(100%, 36rem);
+            max-height: min(80vh, 36rem);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: #222222;
+            color: #f2f4f7;
+            border-radius: 0.6rem;
+        }
+
+        .picker-panel p {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        #picker-list {
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .window-choice {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            width: 100%;
+            padding: 0.4rem;
+            background: transparent;
+            color: inherit;
+            border: 0;
+            border-radius: 0.4rem;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .window-choice:hover,
+        .window-choice:focus-visible {
+            background: #2a2e36;
+        }
+
+        .window-choice img {
+            width: 8rem;
+            height: 4.5rem;
+            object-fit: cover;
+            background: #000;
+            border-radius: 0.25rem;
+        }
+
+        #picker-cancel {
+            align-self: center;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <h1>Transmitir</h1>
+        <div class="channels">
+            <section class="card" data-channel="1">
+                <div class="card-head">
+                    <h2>CANAL 1</h2>
+                    <p class="status" data-status>Conectando…</p>
+                </div>
+                <select data-fps>
+                    <option selected value="60">60fps</option>
+                    <option value="30">30fps</option>
+                </select>
+                <button data-action disabled type="button">Transmitir</button>
+                <video autoplay data-preview hidden muted playsinline></video>
+            </section>
+
+            <section class="card" data-channel="2">
+                <div class="card-head">
+                    <h2>CANAL 2</h2>
+                    <p class="status" data-status>Conectando…</p>
+                </div>
+                <select data-fps>
+                    <option selected value="60">60fps</option>
+                    <option value="30">30fps</option>
+                </select>
+                <button data-action disabled type="button">Transmitir</button>
+                <video autoplay data-preview hidden muted playsinline></video>
+            </section>
+
+            <section class="card" data-channel="3">
+                <div class="card-head">
+                    <h2>CANAL 3</h2>
+                    <p class="status" data-status>Conectando…</p>
+                </div>
+                <select data-fps>
+                    <option selected value="60">60fps</option>
+                    <option value="30">30fps</option>
+                </select>
+                <button data-action disabled type="button">Transmitir</button>
+                <video autoplay data-preview hidden muted playsinline></video>
+            </section>
+        </div>
+        <p class="toast" id="toast" role="status"></p>
+    </main>
+    <div hidden id="picker">
+        <div class="picker-panel">
+            <div id="picker-list"></div>
+            <button id="picker-cancel" type="button">Cancelar</button>
+        </div>
+    </div>
+    <script src="/stream.js"></script>
+</body>
+
+</html>

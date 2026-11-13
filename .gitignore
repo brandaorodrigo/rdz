@@ -1,0 +1,6 @@
+node_modules/
+.env
+*.flv
+desktop/node_modules/
+desktop/dist/
+desktop/loopback/publish/

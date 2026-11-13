@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "@biomejs/biome": "^2.6.7",
+        "dotenv": "^16.6.1",
+        "express": "^4.21.2",
+        "ws": "^8.18.3"
+    },
+    "description": "Transmissor de vídeo vdz",
+    "main": "server.js",
+    "name": "rdz",
+    "private": true,
+    "scripts": {
+        "start": "node server.js"
+    },
+    "version": "1.0"
+}

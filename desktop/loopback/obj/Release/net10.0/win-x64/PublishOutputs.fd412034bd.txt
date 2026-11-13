@@ -1,0 +1,2 @@
+D:\Git\rdz\desktop\loopback\publish\rdz-loopback.pdb
+D:\Git\rdz\desktop\loopback\publish\rdz-loopback.exe
