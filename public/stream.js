@@ -4,7 +4,6 @@ const state = {
     loopback: null,
     picking: false,
     recorder: null,
-    slots: { 1: false, 2: false, 3: false },
     stopping: false,
     stream: null,
     ws: null,
@@ -81,19 +80,10 @@ function waitFor(match, timeoutMs) {
 }
 
 function handle(msg) {
-    if (msg.type === 'slots') {
-        for (const channel of msg.channels) {
-            state.slots[channel.id] = channel.busy;
-        }
-        if (state.stopping && state.channel && !state.slots[state.channel]) {
-            finishStop();
-        } else {
-            render();
-        }
-        return;
-    }
     if (msg.type === 'stopped') {
-        finishStop();
+        if (!msg.channel || msg.channel === state.channel) {
+            finishStop();
+        }
         return;
     }
     if (msg.type === 'error' && !waiter?.match(msg)) {
@@ -327,7 +317,7 @@ async function transmit(channel) {
         showToast('A captura de janela só funciona em localhost ou HTTPS.');
         return;
     }
-    if (!state.connected || state.channel || state.slots[channel]) {
+    if (!state.connected || state.picking || (state.channel === channel && !state.stopping)) {
         return;
     }
 
@@ -340,14 +330,27 @@ async function transmit(channel) {
         showToast(cancelled ? 'Seleção de janela cancelada.' : (err && err.name === 'RdzError' && err.message) || 'Não foi possível capturar a janela.');
         return;
     }
+    const audioBefore = state.loopback;
     if (stream.getAudioTracks().length === 0) {
         for (const track of stream.getTracks()) {
             track.stop();
+        }
+        if (state.loopback !== audioBefore) {
+            releaseDesktopAudio();
         }
         showToast('Marque o áudio do sistema no seletor para transmitir o som.');
         return;
     }
 
+    const audioAfter = state.loopback;
+    if (audioAfter === audioBefore) {
+        dropCapture();
+    } else {
+        state.loopback = null;
+        dropCapture();
+        state.loopback = audioAfter;
+    }
+    state.stopping = false;
     state.stream = stream;
     state.channel = channel;
     const card = document.querySelector(`[data-channel="${channel}"]`);
@@ -365,16 +368,22 @@ async function transmit(channel) {
     }
 
     try {
-        const pending = waitFor((msg) => (msg.type === 'ready' && msg.channel === channel) || msg.type === 'error', 15000);
+        const pending = waitFor((msg) => (msg.type === 'ready' && msg.channel === channel) || msg.type === 'error' || (msg.type === 'stopped' && msg.channel === channel), 15000);
         send({ audio: true, channel, fps, height, type: 'start', width });
         const msg = await pending;
-        if (msg.type === 'error') {
-            throw new Error(msg.message);
+        if (state.stream !== stream) {
+            return;
+        }
+        if (msg.type !== 'ready') {
+            throw new Error(msg.message || 'Não foi possível iniciar a transmissão.');
         }
         startRecorder(stream);
         showToast('');
         render();
     } catch (err) {
+        if (state.stream !== stream) {
+            return;
+        }
         sendStop();
         finishStop();
         showToast(err.message || 'Não foi possível iniciar a transmissão.');
@@ -384,12 +393,6 @@ async function transmit(channel) {
 function sendStop() {
     if (state.ws && state.ws.readyState === WebSocket.OPEN) {
         send({ type: 'stop' });
-    }
-}
-
-function forceStop(channel) {
-    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-        send({ channel, type: 'kill' });
     }
 }
 
@@ -420,31 +423,24 @@ function render() {
     for (const card of document.querySelectorAll('[data-channel]')) {
         const id = Number(card.dataset.channel);
         const mine = state.channel === id;
-        const busy = Boolean(state.slots[id]) && !mine;
         const status = card.querySelector('[data-status]');
         const button = card.querySelector('[data-action]');
-        const locked = mine || busy || !state.connected || state.picking;
 
-        card.querySelector('[data-fps]').disabled = locked;
+        card.querySelector('[data-fps]').disabled = mine || !state.connected || state.picking;
 
         if (!state.connected) {
             status.textContent = 'Conectando…';
-        } else if (mine && state.stopping) {
-            status.textContent = 'Encerrando…';
         } else if (mine) {
             status.textContent = 'Transmitindo';
-        } else if (busy) {
-            status.textContent = 'Ocupado';
         } else {
-            status.textContent = 'Livre';
+            status.textContent = '';
         }
 
         status.classList.toggle('live', mine && !state.stopping);
-        status.classList.toggle('busy', busy);
+        status.classList.remove('busy');
 
-        const ending = mine && state.stopping;
-        button.textContent = mine && !ending ? 'Parar' : busy || ending ? 'Encerrar' : 'Transmitir';
-        button.disabled = state.picking || !state.connected || (!mine && !busy && state.channel !== null);
+        button.textContent = mine && !state.stopping ? 'Parar' : 'Transmitir';
+        button.disabled = state.picking || !state.connected || (mine && state.stopping);
     }
 }
 
@@ -463,8 +459,6 @@ document.querySelector('.channels').addEventListener('click', (event) => {
     const id = Number(button.closest('[data-channel]').dataset.channel);
     if (state.channel === id && !state.stopping) {
         stop();
-    } else if (state.slots[id] || (state.channel === id && state.stopping)) {
-        forceStop(id);
     } else {
         transmit(id);
     }

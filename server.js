@@ -109,7 +109,7 @@ function buildFfmpegArgs(width, height, fps, ingestUrl, withAudio = false) {
 
 function redact(text) {
     let out = String(text).replace(/rtmps?:\/\/\S+/gi, 'rtmps://[redacted]');
-    for (const id of [1, 2, 3]) {
+    for (const id of [1, 2]) {
         const key = (process.env[`KEY_${id}`] || '').trim();
         if (key) {
             out = out.split(key).join('[redacted]');
@@ -125,7 +125,7 @@ function send(ws, payload) {
 }
 
 function slotsPayload() {
-    return { channels: [1, 2, 3].map((id) => ({ busy: sessions.has(id), id })), type: 'slots' };
+    return { channels: [1, 2].map((id) => ({ busy: sessions.has(id), id })), type: 'slots' };
 }
 
 function broadcastSlots() {
@@ -161,8 +161,21 @@ function sessionBySocket(ws) {
 
 function stopSession(id, force) {
     const session = sessions.get(id);
-    if (!session || (session.stopping && !force)) {
-        return;
+    if (!session || session.settled) {
+        return Promise.resolve();
+    }
+    const done = new Promise((resolve) => {
+        const previous = session.onSettled;
+        session.onSettled = () => {
+            if (typeof previous === 'function') {
+                previous();
+            }
+            resolve();
+        };
+        setTimeout(resolve, 4000);
+    });
+    if (session.stopping && !force) {
+        return done;
     }
     session.stopping = true;
     const stdin = session.ffmpeg.stdin;
@@ -177,9 +190,10 @@ function stopSession(id, force) {
     clearTimeout(session.killTimer);
     if (force) {
         kill();
-        return;
+        return done;
     }
     session.killTimer = setTimeout(kill, 3000);
+    return done;
 }
 
 function startSession(ws, channel, width, height, fps, withAudio) {
@@ -203,7 +217,12 @@ function startSession(ws, channel, width, height, fps, withAudio) {
         if (sessions.get(channel) === session) {
             sessions.delete(channel);
         }
-        notify();
+        if (!session.silent) {
+            notify();
+        }
+        if (typeof session.onSettled === 'function') {
+            session.onSettled();
+        }
         broadcastSlots();
     }
 
@@ -258,16 +277,6 @@ function onControl(ws, msg) {
         return;
     }
 
-    if (msg.type === 'kill') {
-        const channel = Number(msg.channel);
-        if (![1, 2, 3].includes(channel)) {
-            send(ws, { message: 'Canal inválido.', type: 'error' });
-            return;
-        }
-        stopSession(channel, true);
-        return;
-    }
-
     if (msg.type !== 'start') {
         return;
     }
@@ -277,7 +286,7 @@ function onControl(ws, msg) {
     const height = 1080;
     const fps = Number(msg.fps);
 
-    if (![1, 2, 3].includes(channel)) {
+    if (![1, 2].includes(channel)) {
         send(ws, { message: 'Canal inválido.', type: 'error' });
         return;
     }
@@ -289,16 +298,25 @@ function onControl(ws, msg) {
         send(ws, { message: 'FFmpeg não está instalado ou não está no PATH.', type: 'error' });
         return;
     }
-    if (sessionBySocket(ws)) {
-        send(ws, { message: 'Esta conexão já está transmitindo.', type: 'error' });
-        return;
-    }
-    if (sessions.has(channel)) {
-        send(ws, { message: 'Canal ocupado.', type: 'error' });
-        return;
-    }
 
-    startSession(ws, channel, width, height, fps, msg.audio === true);
+    takeOver(ws, channel, width, height, fps, msg.audio === true);
+}
+
+async function takeOver(ws, channel, width, height, fps, withAudio) {
+    const mine = sessionBySocket(ws);
+    if (mine && mine.id !== channel) {
+        mine.silent = true;
+        await stopSession(mine.id, true);
+    }
+    const current = sessions.get(channel);
+    if (current && !current.settled) {
+        current.silent = current.ws === ws;
+        await stopSession(channel, true);
+    }
+    if (ws.readyState !== ws.OPEN) {
+        return;
+    }
+    startSession(ws, channel, width, height, fps, withAudio);
 }
 
 function writeChunk(ws, chunk) {
@@ -338,7 +356,7 @@ app.get('/', (_req, res) => sendPage(res, path.join(publicDir, 'index.html')));
 app.get('/stream', (_req, res) => sendPage(res, path.join(publicDir, 'stream.html')));
 function playerSources() {
     const sources = {};
-    for (const id of [1, 2, 3]) {
+    for (const id of [1, 2]) {
         const raw = (process.env[`HTTPS_${id}`] || '').trim();
         let href = '';
         try {
@@ -354,7 +372,7 @@ function playerSources() {
     return sources;
 }
 
-app.get(['/1', '/2', '/3'], (_req, res) => sendPage(res, path.join(publicDir, 'play.html')));
+app.get(['/1', '/2'], (_req, res) => sendPage(res, path.join(publicDir, 'play.html')));
 app.get('/players', (_req, res) => {
     res.set('Cache-Control', 'no-store');
     res.json(playerSources());

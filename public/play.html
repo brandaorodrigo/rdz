@@ -31,14 +31,33 @@
             width: 50%;
         }
 
-        body[data-count="3"] iframe {
-            width: 33.333%;
+        .control {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.5);
         }
     </style>
 </head>
 
 <body>
     <script src="/play.js"></script>
+    <script>
+        function toggleFullscreen() {
+            const iframe = document.querySelector('iframe');
+            if (iframe.requestFullscreen) {
+                iframe.requestFullscreen();
+            } else if (iframe.webkitRequestFullscreen) {
+                iframe.webkitRequestFullscreen();
+            }
+        }
+    </script>
+    <div class="control"><a href="/1">-</a> <a href="/2">+</a> <button onclick="toggleFullscreen()"
+            type="button">fullscreen</button>
+    </div>
 </body>
 
 </html>

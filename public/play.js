@@ -12,7 +12,7 @@ function mount(sources) {
     }
 }
 
-if ([1, 2, 3].includes(count)) {
+if ([1, 2].includes(count)) {
     fetch('/players')
         .then((res) => res.json())
         .then(mount)
